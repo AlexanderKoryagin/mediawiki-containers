@@ -1,0 +1,71 @@
+version: '2'
+services:
+
+  mediawiki:
+    build:
+      context: ./mediawiki-docker
+      dockerfile: Dockerfile
+      args:
+        - MEDIAWIKI_VERSION=REL1_29  # MediaWiki branch name on GitHub
+        - http_proxy=${http_proxy}
+        - https_proxy=${https_proxy}
+    ports:
+      - 80:80
+      - 443:443
+    dns:
+      - 192.168.101.10  # Local DNS
+      - 192.168.50.10   # Local DNS
+      - 8.8.8.8         # Google DNS
+    links:
+      - mysql
+      - node-services
+    depends_on:
+      - mysql
+      - node-services
+    volumes:
+      - ${MEDIAWIKI_LOCAL_PWD}/mediawiki:/data:rw
+      - ${MEDIAWIKI_LOCAL_PWD}/mediawiki/images:/usr/src/mediawiki/images/:rw
+      # Inject our specific settings
+      - ./mediawiki-docker/custom_cfg/mediawiki:/conf:ro
+    environment:
+      - MEDIAWIKI_SITE_SERVER=http://localhost
+      - MEDIAWIKI_SITE_SCRIPTPATH=/wiki # Like http://<site>/wiki  (use '/wiki' only - hardcoded)
+      - MEDIAWIKI_SITE_NAME=Wiki
+      - MEDIAWIKI_SITE_LANG=en
+      - MEDIAWIKI_ADMIN_USER=admin
+      - MEDIAWIKI_ADMIN_PASS=adminpass
+      - MEDIAWIKI_UPDATE=true
+      - MEDIAWIKI_DB_HOST=mysql
+      - MEDIAWIKI_DB_USER=root
+      - MEDIAWIKI_DB_PASSWORD=rootpass
+      - MEDIAWIKI_DB_TYPE=mysql
+      - MEDIAWIKI_ENABLE_SSL=false
+      # Link to node services
+      - MEDIAWIKI_RESTBASE_URL=http://node-services:7231/localhost/v1
+    networks:
+      - wiki-net
+
+  node-services:
+    image: wikimedia/mediawiki-node-services:latest
+    ports:
+      - 7231:7231
+    volumes:
+      - ${MEDIAWIKI_LOCAL_PWD}/node-services:/data
+    environment:
+      - MEDIAWIKI_API_URL=http://mediawiki/wiki/api.php
+    networks:
+      - wiki-net
+
+  mysql:
+    image: mariadb:latest
+    volumes:
+      - ${MEDIAWIKI_LOCAL_PWD}/mysql:/var/lib/mysql:rw
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpass  # same as MEDIAWIKI_DB_PASSWORD
+      - SERVICE_NAME=mysql
+    networks:
+      - wiki-net
+
+networks:
+  wiki-net:
+    driver: bridge
