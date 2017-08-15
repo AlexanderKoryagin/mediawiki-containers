@@ -1,0 +1,4 @@
+# All keys
+*.crt
+*.key
+*.pem

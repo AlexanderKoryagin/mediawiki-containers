@@ -1,7 +1,9 @@
-Creates Wiki in Docker containers:
- - Mediawiki
+Containerized MediaWiki.
+Includes:
+ - MediaWiki + VisualEditor
+ - Nginx
+ - Parsoid
  - DataBase (MariaDB)
- - Parsoid & RESTBase
 
 
 # PREPARATIONS
@@ -40,15 +42,11 @@ docker-compose --version
 git clone https://github.com/AlexanderKoryagin/mediawiki-containers.git
 cd mediawiki-containers
 source .env
-sudo mkdir -p ${MEDIAWIKI_LOCAL_PWD}
-sudo chmod 777 ${MEDIAWIKI_LOCAL_PWD}
 ...edit files...
 docker-compose up
 OR
 docker-compose up -d  # for Detached mode
 
 ------------------
-# DELETE ALL
-docker-compose down --rmi all
-source .env
-sudo rm -rf ${MEDIAWIKI_LOCAL_PWD:-default}/*
+# DELETE ALL (including all data)
+docker-compose down --rmi all --volumes

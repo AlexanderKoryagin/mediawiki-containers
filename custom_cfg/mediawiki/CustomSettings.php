@@ -2,8 +2,12 @@
 
 $wgShowExceptionDetails = true;
 
-// Enable anonymous edit (but not upload)
-$wgGroupPermissions['*']['edit'] = true;
+// Short URL
+$wgArticlePath     = "/wiki/$1";
+$wgUsePathInfo     = true;
+
+// Disable anonymous edit
+$wgGroupPermissions['*']['edit'] = false;
 $wgGroupPermissions['*']['upload_by_url'] = false;
 $wgGroupPermissions['*']['upload'] = false;
 $wgGroupPermissions['*']['reupload'] = false;
@@ -11,9 +15,10 @@ $wgGroupPermissions['*']['reupload'] = false;
 // Upload
 $wgEnableUploads = true;
 $wgUseImageMagick = true;
-$wgFileExtensions = array( 'png', 'gif', 'jpg', 'jpeg', 'doc',
-    'xls', 'mpp', 'pdf', 'ppt', 'tiff', 'bmp', 'docx', 'xlsx',
-    'pptx', 'ps', 'odt', 'ods', 'odp', 'odg',
+$wgFileExtensions = array(
+    'png', 'gif', 'jpg', 'jpeg', 'bmp',
+    'doc', 'docx', 'xls', 'xlsx', 'mpp', 'pdf', 'ppt', 'pptx', 'txt',
+    'odt', 'ods', 'odp', 'odg',
     'zip', 'gz', 'tar', '7z'
 );
 
@@ -63,7 +68,7 @@ $wgVisualEditorAvailableNamespaces = [
 $wgVirtualRestConfig['modules']['parsoid'] = array(
 	// URL to the Parsoid instance
 	// Use port 8142 if you use the Debian package
-	'url' => 'http://node-services:8142',
+	'url' => 'http://parsoid:8142',
 	// Parsoid "domain", see below (optional)
 	'domain' => 'localhost',
 );

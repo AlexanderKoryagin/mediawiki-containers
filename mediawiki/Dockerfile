@@ -1,4 +1,6 @@
-FROM ubuntu:16.04
+# MediaWiki is not yet fully compatible with PHP 7.1
+# FastCGI Process Manager
+FROM php:fpm
 
 ARG MEDIAWIKI_VERSION
 ARG http_proxy
@@ -8,12 +10,12 @@ ENV MEDIAWIKI_VERSION ${MEDIAWIKI_VERSION}
 ENV http_proxy ${http_proxy}
 ENV https_proxy ${https_proxy}
 
+ENV MW_DIR /data/sites/wiki
 
-# Upgrade
-RUN apt-get update && apt-get upgrade -y;
 
-# Utilities
+## Utilities
 RUN apt-get update && \
+    apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
         netcat \
         git \
@@ -25,44 +27,36 @@ RUN apt-get update && \
         imagemagick \
         ;
 
-# PHP
+## PHP Extensions
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        php-mysql \
-        php-cli \
-        php-gd \
-        php-curl \
-        php-mbstring \
-        php-xml \
-        php-ldap \
-        php-memcache \
-        php-imagick \
-        php-intl \
-        ;
-
-# Apache2
-RUN set -x ;\
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-        apache2 \
-        libapache2-mod-php ;\
+    apt-get install -y \
+        libicu-dev \
+        libldap2-dev \
+        ;\
+    # MySQL
+    docker-php-ext-install mysqli ;\
+    # intl PECL extension for Unicode normalization
+    docker-php-ext-install intl ;\
+    # LDAP
     rm -rf /var/lib/apt/lists/* ;\
-    rm -rf /var/cache/apt/archives/* ;\
-    a2enmod rewrite ;\
-    a2enmod proxy ;\
-    a2enmod proxy_http ;\
-    # Remove the default Debian index page.
-    rm /var/www/html/index.html ;
-RUN apache2ctl restart
+    docker-php-ext-configure ldap --with-libdir=lib/x86_64-linux-gnu/ ;\
+    docker-php-ext-install ldap ;\
+    # APCu
+    pear config-set http_proxy ${http_proxy} ;\
+    docker-php-ext-install opcache &&\
+    pecl channel-update pecl.php.net &&\
+    yes 'n' | pecl install apcu &&\
+    docker-php-ext-enable apcu \
+    ;
 
-RUN \
-    set -x ;\
+## Clone MediaWiki
+WORKDIR ${MW_DIR}
+RUN set -x ;\
     GITHUB='https://github.com/wikimedia' ;\
-    GITCLONE="git clone -v --progress -b ${MEDIAWIKI_VERSION}" ;\
-    mkdir -p /usr/src ;\
-    ${GITCLONE} -b ${MEDIAWIKI_VERSION} ${GITHUB}/mediawiki.git /usr/src/mediawiki ;\
-    cd /usr/src/mediawiki ;\
-    # skin + vendor
+    GITCLONE="git clone -v --progress --single-branch --branch ${MEDIAWIKI_VERSION}" ;\
+    # Mediawiki
+    ${GITCLONE} ${GITHUB}/mediawiki.git ${MW_DIR} ;\
+    # Skin + Vendor
     ${GITCLONE} ${GITHUB}/mediawiki-skins-Vector.git ./skins/Vector ;\
     ${GITCLONE} ${GITHUB}/mediawiki-vendor.git ./vendor ;\
     # VisualEditor
@@ -78,16 +72,11 @@ RUN \
     ${GITCLONE} ${GITHUB}/mediawiki-extensions-CodeEditor.git ./extensions/CodeEditor ;\
     ${GITCLONE} ${GITHUB}/mediawiki-extensions-LdapAuthentication.git ./extensions/LdapAuthentication ;
 
-# Custom Config
-# TODO need to get PHP version (7.0) from container
-COPY custom_cfg/php.ini /etc/php/7.0/cli/conf.d/mediawiki.ini
-RUN apache2ctl restart
+# Custom PHP Config
+COPY ./php_cfg_mediawiki.ini /usr/local/etc/php/conf.d/mediawiki.ini
 
-COPY custom_cfg/apache/mediawiki.conf /etc/apache2/
-RUN echo "Include /etc/apache2/mediawiki.conf" >> /etc/apache2/apache2.conf
 
 COPY docker-entrypoint.sh /entrypoint.sh
 
-EXPOSE 80 443
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["apachectl", "-e", "info", "-D", "FOREGROUND"]
+CMD ["php-fpm", "-F"]
