@@ -43,6 +43,7 @@ git clone https://github.com/AlexanderKoryagin/mediawiki-containers.git
 cd mediawiki-containers
 source .env
 ...edit files...
+docker-compose config
 docker-compose up
 OR
 docker-compose up -d  # for Detached mode
